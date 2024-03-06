@@ -85,7 +85,7 @@ class EstWithNest():
             outercv = StratifiedKFold(n_splits=outer_split, shuffle=True, random_state=round)
             scoring_eval = get_scorer(scoring)
             j=1
-            for train_index, test_index in tqdm(outercv.split(self.data, self.labels), desc='outer splits'):
+            for train_index, test_index in tqdm(outercv.split(self.data, self.labels), desc='Outer CV', total=outer_split):
                 X_train, X_test = self.data.iloc[train_index], self.data.iloc[test_index]
                 y_train, y_test = self.labels[train_index], self.labels[test_index]
                 for est in estimators2try:
