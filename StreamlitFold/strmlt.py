@@ -4,6 +4,7 @@ import streamlit as st
 import str_hello
 import str_expl
 import str_clf_comp
+import str_model_train
 
 # Initialize session state for page navigation if not already set
 if 'current_page' not in st.session_state:
@@ -18,7 +19,8 @@ st.sidebar.title("Navigation")
 pages = {
     "Introduction": str_hello,
     "Data Exploration": str_expl,
-    "Estimators Comparison": str_clf_comp
+    "Estimators Comparison": str_clf_comp,
+    "Model Training and Tunning": str_model_train
 }
 
 # Option for users to select a page

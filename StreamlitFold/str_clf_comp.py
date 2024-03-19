@@ -18,15 +18,7 @@ import sklearn
 from sklearn.model_selection import StratifiedKFold
 from optuna_grid_streamlit import optuna_grid_streamlit
 
-
-def app():
-    st.title('Estimators Comparison 🧐')
-
-    st.write('Exploring and Compare the different estimators.')
-
-    st.markdown("""## Set the Comparison:""")
-
-    available_metrics = {
+available_metrics = {
         'AUC': make_scorer(roc_auc_score),
         'MCC': make_scorer(matthews_corrcoef),
         'Balanced_accuracy': make_scorer(balanced_accuracy_score),
@@ -37,13 +29,72 @@ def app():
         'Accuracy': make_scorer(accuracy_score),
         'Average_precision': make_scorer(average_precision_score)}
     
-    available_estimators = {'Logistic Regression': LogisticRegression(),
-                            'Decision Tree': DecisionTreeClassifier(), 
-                            'Random Forest': RandomForestClassifier(),
-                            'K-Nearest Neighbors': KNeighborsClassifier(),
-                            'Support Vector Machine': SVC(),
-                            'Gaussian Naive Bayes': GaussianNB(),
-                            'Linear Discriminant Analysis': LinearDiscriminantAnalysis()}
+available_estimators = {'Logistic Regression': LogisticRegression(),
+                        'Decision Tree': DecisionTreeClassifier(), 
+                        'Random Forest': RandomForestClassifier(),
+                        'K-Nearest Neighbors': KNeighborsClassifier(),
+                        'Support Vector Machine': SVC(),
+                        'Gaussian Naive Bayes': GaussianNB(),
+                        'Linear Discriminant Analysis': LinearDiscriminantAnalysis()}
+
+
+# @st.cache_data
+def nestedcv(rounds, chosen_metric, inner_splits, outer_splits, est_list, trials, data, labels, metrics2calculate):
+    selected_estimators = {est_name: available_estimators[est_name] for est_name in est_list}
+    selected_metric = available_metrics[chosen_metric]
+    selected_metrics4df = {metric_name: available_metrics[metric_name] for metric_name in metrics2calculate}
+
+    results = pd.DataFrame(columns=['Estimator'] + list(selected_metrics4df.keys()))
+    data2append = []
+
+    # Progress bar
+    progress_bar = st.progress(0)
+    total_steps = rounds * outer_splits * len(est_list)
+    current_step = 0
+
+    for round in range(rounds):
+        innercv = StratifiedKFold(n_splits=inner_splits, shuffle=True, random_state=round)
+        outercv = StratifiedKFold(n_splits=outer_splits, shuffle=True, random_state=round)
+
+        for train_index, test_index in outercv.split(data, labels):
+            X_train, X_test = data.iloc[train_index], data.iloc[test_index]
+            y_train, y_test = labels.iloc[train_index], labels.iloc[test_index]  
+
+            for est_name, estimator in selected_estimators.items():
+                param_distributions = optuna_grid_streamlit["NestedCV"][est_name]
+
+                clf = OptunaSearchCV(
+                    estimator=estimator,
+                    param_distributions=param_distributions,
+                    cv=innercv,
+                    n_jobs=1,
+                    verbose=0,
+                    n_trials=trials,
+                    scoring=make_scorer(selected_metric)  
+                )
+
+                clf.fit(X_train, y_train)
+                scores_for_current_estimator = {'Estimator': est_name}
+
+                for metric_name, scorer_function in selected_metrics4df.items():
+                    score = scorer_function(clf.best_estimator_, X_test, y_test)
+                    scores_for_current_estimator[metric_name] = score
+
+                data2append.append(scores_for_current_estimator)
+                
+                # Update the progress bar after each step
+                current_step += 1
+                progress_bar.progress(current_step / total_steps)
+
+    results = pd.DataFrame(data2append)
+    return results
+
+def app():
+    st.title('Estimators Comparison 🧐')
+
+    st.write('Exploring and Compare the different estimators.')
+
+    st.markdown("""## Set the Comparison:""")
 
     with st.expander("Available estimators"):
         st.markdown("""### Available estimators:""")
@@ -118,69 +169,19 @@ def app():
     feat_sc = pd.DataFrame(scaled_features.fit_transform(df[columns_to_scale]), columns=columns_to_scale, index=df.index)
     feat_sc['Sex'] = df['Sex']
     labels = df['label']
-
-    def nestedcv(rounds, metric, inner_splits, outer_splits, estimators, trials, data, labels, calc_metrics):
-        results = pd.DataFrame(columns=['Estimator'] + list(calc_metrics.keys()))
-        data2append = []
-
-        # Progress bar
-        progress_bar = st.progress(0)
-        total_steps = rounds * outer_splits * len(estimators)
-        current_step = 0
-
-        for round in range(rounds):
-            innercv = StratifiedKFold(n_splits=inner_splits, shuffle=True, random_state=round)
-            outercv = StratifiedKFold(n_splits=outer_splits, shuffle=True, random_state=round)
-
-            for train_index, test_index in outercv.split(data, labels):
-                X_train, X_test = data.iloc[train_index], data.iloc[test_index]
-                y_train, y_test = labels.iloc[train_index], labels.iloc[test_index]  
-
-                for est_name, estimator in estimators.items():
-                    param_distributions = optuna_grid_streamlit["NestedCV"][est_name]
-
-                    clf = OptunaSearchCV(
-                        estimator=estimator,
-                        param_distributions=param_distributions,
-                        cv=innercv,
-                        n_jobs=1,
-                        verbose=0,
-                        n_trials=trials,
-                        scoring=make_scorer(metric)  
-                    )
-
-                    clf.fit(X_train, y_train)
-                    scores_for_current_estimator = {'Estimator': est_name}
-
-                    for metric_name, scorer_function in calc_metrics.items():
-                        score = scorer_function(clf.best_estimator_, X_test, y_test)
-                        scores_for_current_estimator[metric_name] = score
-
-                    data2append.append(scores_for_current_estimator)
-                    
-                    # Update the progress bar after each step
-                    current_step += 1
-                    progress_bar.progress(current_step / total_steps)
-
-        results = pd.DataFrame(data2append)
-        for metric in results.columns[1:]:  # Skip the first column ('Estimator') and iterate through metrics
-            plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
-            sns.boxplot(data=results, x='Estimator', y=metric)
-            plt.title(f'Boxplot of {metric} by Estimator')
-            plt.xticks(rotation=45)  # Rotate the x labels to avoid overlap
-            plt.ylabel(metric)
-            plt.xlabel('Estimator')
-            st.pyplot(plt)  # Display the plot in Streamlit
-            plt.clf() 
-        return results
     
-    selected_estimators = {est_name: available_estimators[est_name] for est_name in est_list}
-    selected_metric = available_metrics[chosen_metric]
-    selected_metrics4df = {metric_name: available_metrics[metric_name] for metric_name in metrics2calculate}
-
     with st.expander("Run Nested Cross-Validation"):
         if st.button("Run Nested Cross-Validation"):
             # Use selected_estimators here
-            results = nestedcv(rounds, selected_metric, inner_splits, outer_splits, selected_estimators, trials, feat_sc, labels, selected_metrics4df)
+            results = nestedcv(rounds, chosen_metric, inner_splits, outer_splits, est_list, trials, feat_sc, labels, metrics2calculate)
+            for metric in results.columns[1:]:  # Skip the first column ('Estimator') and iterate through metrics
+                plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
+                sns.boxplot(data=results, x='Estimator', y=metric)
+                plt.title(f'Boxplot of {metric} by Estimator')
+                plt.xticks(rotation=45)  # Rotate the x labels to avoid overlap
+                plt.ylabel(metric)
+                plt.xlabel('Estimator')
+                st.pyplot(plt)  # Display the plot in Streamlit
+                plt.clf() 
             st.dataframe(results)
 
