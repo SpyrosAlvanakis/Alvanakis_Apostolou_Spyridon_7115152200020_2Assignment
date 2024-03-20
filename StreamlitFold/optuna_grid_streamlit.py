@@ -141,7 +141,7 @@ optuna_grid_streamlit = {
             tol=trial.suggest_categorical("tol", [1e-3, 1e-4, 1e-5]),
         ),
         "Logistic Regression": lambda trial: LogisticRegression(
-            penalty=trial.suggest_categorical("penalty", ["l1", "l2", "none"]),
+            penalty=trial.suggest_categorical("penalty", ["l1", "l2"]),
             C=trial.suggest_float("C", 0.1, 10.0),
             solver=(
                 trial.suggest_categorical("solver_1", ["liblinear", "saga"])

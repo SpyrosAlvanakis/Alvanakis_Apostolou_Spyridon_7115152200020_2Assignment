@@ -19,6 +19,8 @@ def app():
         In this app, we will explore a dataset containing information about Hepatitis C patients.
         - **Page 1:** Introduction.
         - **Page 2:**  Overview and Interactive data visualizations to explore the dataset.
+        - **Page 3:**  Estimators Comparison.
+        - **Page 4:**  Selected Estimator Training and Tunning.
     """)
     # st.title('Interactive Data Exploration')
 

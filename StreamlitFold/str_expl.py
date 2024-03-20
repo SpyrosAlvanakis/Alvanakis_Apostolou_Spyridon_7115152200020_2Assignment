@@ -25,14 +25,18 @@ def app():
 
     if st.checkbox('Show Boxplots'):
         st.header("Boxplots")
-        fig, axes = plt.subplots(nrows=5, ncols=2, figsize=(15, 15))
-        for i, col in enumerate(df.columns):
-            if not (col == 'Age' or col == 'label' or col == 'Sex'):
-                ax = axes.flatten()[i - 3]  # Adjust this indexing as needed
-                df.boxplot(by='Age', column=[col], ax=ax, grid=False)
-                ax.set_title(col)
-        plt.tight_layout()
-        st.pyplot(fig)
+        column4box = st.selectbox('Select column to visualize', df.columns[2:-2], key='boxplot_column')
+        plt.figure()
+        sns.boxplot(x='Age', y=column4box, data=df)
+        st.pyplot(plt)
+        # fig, axes = plt.subplots(nrows=5, ncols=2, figsize=(15, 15))
+        # for i, col in enumerate(df.columns):
+        #     if not (col == 'Age' or col == 'label' or col == 'Sex'):
+        #         ax = axes.flatten()[i - 3]  # Adjust this indexing as needed
+        #         df.boxplot(by='Age', column=[col], ax=ax, grid=False)
+        #         ax.set_title(col)
+        # plt.tight_layout()
+        # st.pyplot(fig)
 
     if st.checkbox('Show Pairplot'):
         st.header("Pairplot")

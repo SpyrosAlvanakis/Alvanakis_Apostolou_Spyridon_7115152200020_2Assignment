@@ -67,7 +67,7 @@ def opt_final_sel(estimator,data,labels,scorer,cv, direction, n_trials,metrics2c
         scores_dict[metric_name] = [score]
     
     results = pd.DataFrame.from_dict(scores_dict)
-    return results
+    return results , best_params
 
 
 def app():
@@ -106,5 +106,7 @@ def app():
     
     with st.expander("Run Cross-Validation"):
         if st.button("Run Cross-Validation"):       
-            scores_metrics = opt_final_sel([chosen_estimator], feat_sc, labels, chosen_metric, splits, direction, trials, metrics2calculate)
+            scores_metrics, best_params = opt_final_sel([chosen_estimator], feat_sc, labels, chosen_metric, splits, direction, trials, metrics2calculate)
             st.dataframe(scores_metrics)
+            st.write(f"Best parameters for {chosen_estimator}: {best_params}")
+        
